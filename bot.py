@@ -1,5 +1,6 @@
 import random
 import os
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, CallbackQueryHandler, filters, ContextTypes
 
@@ -22,8 +23,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(welcome_text, reply_markup=reply_markup)
-
-# هندلر پاسخ به دکمه‌های اینلاین
 
         async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
