@@ -24,9 +24,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(welcome_text, reply_markup=reply_markup)
 
-        async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+# 👇 اینو بیار بیرون (بدون فاصله اضافی)
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()  # تایید کلیک کاربر
+    await query.answer()
 
     if query.data == "rules":
         rules_text = (
