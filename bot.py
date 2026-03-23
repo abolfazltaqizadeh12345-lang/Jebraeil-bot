@@ -11,7 +11,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"سلام به ربات اختصاصی جبرئیل من خوش آمدی {update.effective_user.first_name} 👋\n"
         "چطوری می‌تونم کمکت کنم؟"
     )
-    
+     
     # دکمه‌های اینلاین
     keyboard = [
         [InlineKeyboardButton("📜 قوانین ربات", callback_data="rules")],
