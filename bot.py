@@ -1,10 +1,9 @@
 import random
-import os
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, CallbackQueryHandler, filters, ContextTypes
 
-TOKEN = os.environ["TOKEN"]
+TOKEN = "8650092381:AAHkP3bcqs1sNby-XPzjn-njLnnGgH_zyCM"
 
 # هندلر /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
