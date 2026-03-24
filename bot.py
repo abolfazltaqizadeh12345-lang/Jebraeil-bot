@@ -30,19 +30,24 @@ def get_level(xp):
 # منوی اصلی
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = f"سلام {update.effective_user.first_name} 👋"
+    welcome_text = (
+        f"سلام {update.effective_user.first_name} 👋\n"
+        "چطوری می‌تونم کمکت کنم؟"
+    )
 
     keyboard = [
         [InlineKeyboardButton("📜 قوانین ربات", callback_data="rules")],
-        [InlineKeyboardButton("💡 پیشنهادات", callback_data="suggestions")],
+        [InlineKeyboardButton("➕ اضافه کردن ربات به گروه", url=f"https://t.me/{context.bot.username}?startgroup=true")],
+        [InlineKeyboardButton("👤 مالک ربات", url="https://t.me/itxxabolfazl")],
+        [InlineKeyboardButton("💡 پیشنهادات", callback_data="suggestions")]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     if update.message:
-        await update.message.reply_text(text, reply_markup=reply_markup)
+        await update.message.reply_text(welcome_text, reply_markup=reply_markup)
     elif update.callback_query:
-        await update.callback_query.message.reply_text(text, reply_markup=reply_markup)
+        await update.callback_query.message.reply_text(welcome_text, reply_markup=reply_markup)
 
 # =========================
 # دکمه‌ها
@@ -55,7 +60,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "rules":
         keyboard = [[InlineKeyboardButton("🏠 برگشت", callback_data="back_to_menu")]]
         await query.message.edit_text(
-            "📜 قوانین:\n1️⃣ احترام\n2️⃣ اسپم ممنوع",
+            "📜 قوانین ربات:\n1️⃣ احترام\n2️⃣ اسپم ممنوع",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
@@ -73,6 +78,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "back_to_menu":
         user_states.pop(user_id, None)
+
+        await query.message.delete()
         await start(update, context)
 
 # =========================
@@ -95,7 +102,7 @@ responses = {
 }
 
 # =========================
-# پاسخ ادمین به پیشنهاد
+# پاسخ ادمین
 # =========================
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -137,7 +144,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_xp[user_id] = user_xp.get(user_id, 0) + 5
         last_message_time[user_id] = now
 
-    # پیشنهادات
+    # پیشنهادات (بدون پیام مزاحم)
     if user_states.get(user_id) == "waiting_for_suggestion":
 
         await context.bot.send_message(
@@ -145,14 +152,18 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=f"📩 پیشنهاد:\n\n{text}\n\n👤 {update.message.from_user.first_name}\nID:{user_id}"
         )
 
-        await update.message.reply_text(
-            "✅ ارسال شد ❤️\n(ادامه بده یا برگرد به منو)"
-        )
         return
 
     # لول
     if text == "لول":
         await show_level(update, context)
+        return
+
+    # قوانین لول
+    if text == "قوانین لول ربات":
+        await update.message.reply_text(
+            "📜 قوانین:\nهر پیام = 5 XP\nهر 100 XP = 1 Level"
+        )
         return
 
     # پاسخ ساده
@@ -178,7 +189,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # پاسخ ادمین باید قبل از بقیه باشه
+    # مهم: اول ادمین
     app.add_handler(MessageHandler(filters.TEXT & filters.REPLY, admin_reply))
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_messages))
