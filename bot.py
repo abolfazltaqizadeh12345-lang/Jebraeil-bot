@@ -8,6 +8,9 @@ from telegram.ext import (
     CallbackQueryHandler, filters, ContextTypes
 )
 
+# =========================
+# توکن و کلید API
+# =========================
 TOKEN = os.environ.get("TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 print("کلید API (۵ کاراکتر اول):", OPENROUTER_API_KEY[:5], "...")  # فقط برای اطمینان
@@ -131,38 +134,41 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 🤖 هوش مصنوعی
     if text.startswith("ربات بگو:"):
         user_text = text[len("ربات بگو:"):].strip()
-        print("ارسال به OpenRouter:", user_text)  # برای دیباگ
+        print("ارسال به OpenRouter:", user_text)
 
-        if user_text:
-            await update.message.reply_text("🤖 دارم فکر می‌کنم...")
-
-            try:
-                response = requests.post(
-                    url="https://openrouter.ai/api/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://railway.app",
-                        "X-Title": "Telegram Bot"
-                    },
-                    json={
-                        "model": "mistralai/mistral-7b-instruct:free",
-                        "messages": [
-                            {"role": "user", "content": user_text}
-                        ]
-                    }
-                )
-
-                data = response.json()
-                ai_reply = data["choices"][0]["message"]["content"]
-                await update.message.reply_text(ai_reply)
-
-            except Exception as e:
-                print("Error:", e)  # برای دیباگ
-                await update.message.reply_text("❌ خطا در دریافت پاسخ")
-
-        else:
+        if not user_text:
             await update.message.reply_text("❗ بعد از 'ربات بگو:' یه چیزی بنویس")
+            return
+
+        await update.message.reply_text("🤖 دارم فکر می‌کنم...")
+
+        try:
+            response = requests.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "mistralai/mistral-7b-instruct:free",
+                    "messages": [{"role": "user", "content": user_text}]
+                },
+                timeout=20
+            )
+
+            if response.status_code != 200:
+                print("Status code:", response.status_code)
+                print("Response:", response.text)
+                await update.message.reply_text("❌ خطا در دریافت پاسخ از سرور")
+                return
+
+            data = response.json()
+            ai_reply = data["choices"][0]["message"]["content"]
+            await update.message.reply_text(ai_reply)
+
+        except Exception as e:
+            print("Error:", e)
+            await update.message.reply_text("❌ خطا در دریافت پاسخ")
 
         return
 
