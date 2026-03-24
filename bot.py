@@ -95,7 +95,7 @@ async def show_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text)
 
 # =========================
-# پاسخ به پیام‌ها + XP + پیشنهادات + لول با "لول"
+# پاسخ به پیام‌ها + XP + پیشنهادات + لول با "لول" + قوانین لول
 # =========================
 responses = {
     "سلام": ["سلام چطوری ؟", "درود بر تو 👋", "سلام رفیق 😎"],
@@ -126,6 +126,18 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 💬 دستور لول با نوشتن "لول"
     if text == "لول":
         await show_level(update, context)
+        return
+
+    # 💬 قوانین لول ربات
+    if text == "قوانین لول ربات":
+        await update.message.reply_text(
+            "📜 قوانین لول و XP ربات:\n\n"
+            "• هر پیامی که بفرستی 5 XP به تو اضافه می‌کنه.\n"
+            "• وقتی XPت به 100 رسید، یک لول می‌گیری.\n"
+            "• لول = XP تقسیم بر 100\n"
+            "• ادمین می‌تونه لول خودش و لول کسی که روش ریپلای کرده رو ببینه.\n"
+            "• نوشتن 'لول' سطح و XP شما را نشان می‌دهد."
+        )
         return
 
     # 💬 پاسخ معمولی
