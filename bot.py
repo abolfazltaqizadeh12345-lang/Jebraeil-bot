@@ -151,7 +151,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_id = update.message.from_user.id
-    text = update.message.text.strip()
+    text = update.message.text.strip().replace("!", "").replace("؟", "").replace("?", "")
     chat_id = update.message.chat.id
 
     # 👇 جدید (ذخیره کاربران گروه)
