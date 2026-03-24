@@ -1,5 +1,6 @@
 import random
 import os
+import requests
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -8,6 +9,7 @@ from telegram.ext import (
 )
 
 TOKEN = os.environ.get("TOKEN")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
 ADMIN_ID = 7801959849
 
@@ -85,7 +87,6 @@ async def show_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = f"🎮 لول شما: {lvl}\n⭐ XP: {xp}"
 
-    # اگه ادمین هست و ریپلای کرده روی کسی
     if user_id == ADMIN_ID and update.message.reply_to_message:
         target_user = update.message.reply_to_message.from_user
         target_xp = user_xp.get(target_user.id, 0)
@@ -95,7 +96,7 @@ async def show_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text)
 
 # =========================
-# پاسخ به پیام‌ها + XP + پیشنهادات + لول با "لول" + قوانین لول
+# پاسخ‌ها
 # =========================
 responses = {
     "سلام": ["سلام چطوری ؟", "درود بر تو 👋", "سلام رفیق 😎"],
@@ -103,6 +104,9 @@ responses = {
     "چطوری": ["عالییی ام 😎", "خدت چطوری 😐", "مرسی، روزت خوب باشه ❤️"]
 }
 
+# =========================
+# پیام‌ها
+# =========================
 async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -110,7 +114,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text.strip().lower()
 
-    # 🎮 اضافه کردن XP
+    # 🎮 XP
     user_xp[user_id] = user_xp.get(user_id, 0) + 5
 
     # 📩 پیشنهادات
@@ -123,26 +127,61 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_states.pop(user_id, None)
         return
 
-    # 💬 دستور لول با نوشتن "لول"
+    # 🤖 هوش مصنوعی
+    if text.startswith("ربات بگو:"):
+        user_text = text.replace("ربات بگو:", "").strip()
+
+        if user_text:
+            await update.message.reply_text("🤖 دارم فکر می‌کنم...")
+
+            try:
+                response = requests.post(
+                    url="https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://railway.app",
+                        "X-Title": "Telegram Bot"
+                    },
+                    json={
+                        "model": "mistralai/mistral-7b-instruct:free",
+                        "messages": [
+                            {"role": "user", "content": user_text}
+                        ]
+                    }
+                )
+
+                data = response.json()
+                ai_reply = data["choices"][0]["message"]["content"]
+
+                await update.message.reply_text(ai_reply)
+
+            except Exception:
+                await update.message.reply_text("❌ خطا در دریافت پاسخ")
+
+        else:
+            await update.message.reply_text("❗ بعدش یه سوال بنویس")
+
+        return
+
+    # 🎮 لول
     if text == "لول":
         await show_level(update, context)
         return
 
-    # 💬 قوانین لول ربات
+    # 📜 قوانین لول
     if text == "قوانین لول ربات":
         await update.message.reply_text(
             "📜 قوانین لول و XP ربات:\n\n"
-            "1️⃣ هر پیامی که بفرستی 5 XP به تو اضافه می‌کنه.\n"
-            "2️⃣ وقتی XPت به 100 رسید، یک لول می‌گیری.\n"
-            "3️⃣ لول = XP تقسیم بر 100\n"
-            "4️⃣ ادمین می‌تونه لول خودش و لول کسی که روش ریپلای کرده رو ببینه.\n"
-            "5️⃣ نوشتن 'لول' سطح و XP شما را نشان می‌دهد."
+            "1️⃣ هر پیام = 5 XP\n"
+            "2️⃣ هر 100 XP = 1 لول\n"
+            "3️⃣ با 'لول' سطح خودتو ببین\n"
         )
         return
 
-    # 💬 پاسخ معمولی فقط برای کلمات دقیق
+    # 💬 پاسخ دقیق
     for key in responses:
-        if text == key:  # مقایسه دقیق به جای in
+        if text == key:
             await update.message.reply_text(random.choice(responses[key]))
             break
 
@@ -152,10 +191,10 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message and update.message.new_chat_members:
         for member in update.message.new_chat_members:
-            await update.message.reply_text(f"{member.first_name} خوش اومدی به گروه جبرئیل من ❤️")
+            await update.message.reply_text(f"{member.first_name} خوش اومدی ❤️")
 
 # =========================
-# اجرای ربات
+# اجرا
 # =========================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
