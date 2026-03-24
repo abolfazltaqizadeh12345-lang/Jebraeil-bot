@@ -76,7 +76,26 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await start(update, context)
 
 # =========================
-# پاسخ به پیام‌ها + XP + پیشنهادات
+# نمایش لول
+# =========================
+async def show_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    xp = user_xp.get(user_id, 0)
+    lvl = get_level(xp)
+
+    text = f"🎮 لول شما: {lvl}\n⭐ XP: {xp}"
+
+    # اگه ادمین هست و ریپلای کرده روی کسی
+    if user_id == ADMIN_ID and update.message.reply_to_message:
+        target_user = update.message.reply_to_message.from_user
+        target_xp = user_xp.get(target_user.id, 0)
+        target_lvl = get_level(target_xp)
+        text += f"\n\n👤 لول {target_user.first_name}:\n🎮 {target_lvl}\n⭐ XP: {target_xp}"
+
+    await update.message.reply_text(text)
+
+# =========================
+# پاسخ به پیام‌ها + XP + پیشنهادات + لول با "لول"
 # =========================
 responses = {
     "سلام": ["سلام چطوری ؟", "درود بر تو 👋", "سلام رفیق 😎"],
@@ -89,7 +108,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_id = update.message.from_user.id
-    text = update.message.text
+    text = update.message.text.strip().lower()
 
     # 🎮 اضافه کردن XP
     user_xp[user_id] = user_xp.get(user_id, 0) + 5
@@ -100,29 +119,20 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=ADMIN_ID,
             text=f"📩 پیشنهاد جدید:\n\n{text}\n\n👤 از: {update.message.from_user.first_name}"
         )
-
         await update.message.reply_text("✅ پیشنهادت ارسال شد، ممنون ❤️")
         user_states.pop(user_id, None)
         return
 
+    # 💬 دستور لول با نوشتن "لول"
+    if text == "لول":
+        await show_level(update, context)
+        return
+
     # 💬 پاسخ معمولی
-    text_lower = text.lower()
     for key in responses:
-        if key in text_lower:
+        if key in text:
             await update.message.reply_text(random.choice(responses[key]))
             break
-
-# =========================
-# دستور لول
-# =========================
-async def level(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    xp = user_xp.get(user_id, 0)
-    lvl = get_level(xp)
-
-    await update.message.reply_text(
-        f"🎮 لول شما: {lvl}\n⭐ XP: {xp}"
-    )
 
 # =========================
 # خوش‌آمدگویی
@@ -139,8 +149,6 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("level", level))
-
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_messages))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
