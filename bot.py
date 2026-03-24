@@ -20,6 +20,18 @@ user_states = {}
 user_xp = {}
 last_message_time = {}
 
+# 👇 جدید (اضافه شده)
+group_users = {}
+
+# 👇 جدید (اضافه شده)
+random_messages = [
+    "مورده یی یا زنده ؟ 🙁",
+    "زیبو دری یا گنگه یی ؟ 😐",
+    "بلیبور تو شنوم 😍",
+    "یگو دفه گپ بزن بفامیم زنده یی 👀",
+    "چخبر مقبولک 😁"
+]
+
 # =========================
 # لول
 # =========================
@@ -137,6 +149,13 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.message.from_user.id
     text = update.message.text.strip()
+    chat_id = update.message.chat.id
+
+    # 👇 جدید (ذخیره کاربران گروه)
+    if update.message.chat.type in ["group", "supergroup"]:
+        if chat_id not in group_users:
+            group_users[chat_id] = set()
+        group_users[chat_id].add(user_id)
 
     # XP ضد اسپم
     now = time.time()
@@ -173,6 +192,35 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
 # =========================
+# 👇 جدید (پیام رندوم هر ۵۵ دقیقه)
+# =========================
+async def send_random_message(context: ContextTypes.DEFAULT_TYPE):
+    for chat_id, users in group_users.items():
+
+        if not users:
+            continue
+
+        user_id = random.choice(list(users))
+        text = random.choice(random_messages)
+
+        try:
+            user = await context.bot.get_chat(user_id)
+            name = user.first_name
+        except:
+            name = "یه نفر"
+
+        mention = f"<a href='tg://user?id={user_id}'>{name}</a>"
+
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"{text}\n\n{mention}",
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            print("Error:", e)
+
+# =========================
 # خوش‌آمدگویی
 # =========================
 async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -189,11 +237,12 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # مهم: اول ادمین
     app.add_handler(MessageHandler(filters.TEXT & filters.REPLY, admin_reply))
-
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_messages))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
+
+    # 👇 جدید (هر ۵۵ دقیقه)
+    app.job_queue.run_repeating(send_random_message, interval=3300, first=60)
 
     print("🚀 Bot is running...")
     app.run_polling()
