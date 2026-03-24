@@ -132,17 +132,17 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "قوانین لول ربات":
         await update.message.reply_text(
             "📜 قوانین لول و XP ربات:\n\n"
-            "• هر پیامی که بفرستی 5 XP به تو اضافه می‌کنه.\n"
-            "• وقتی XPت به 100 رسید، یک لول می‌گیری.\n"
-            "• لول = XP تقسیم بر 100\n"
-            "• ادمین می‌تونه لول خودش و لول کسی که روش ریپلای کرده رو ببینه.\n"
-            "• نوشتن 'لول' سطح و XP شما را نشان می‌دهد."
+            "1️⃣ هر پیامی که بفرستی 5 XP به تو اضافه می‌کنه.\n"
+            "2️⃣ وقتی XPت به 100 رسید، یک لول می‌گیری.\n"
+            "3️⃣ لول = XP تقسیم بر 100\n"
+            "4️⃣ ادمین می‌تونه لول خودش و لول کسی که روش ریپلای کرده رو ببینه.\n"
+            "5️⃣ نوشتن 'لول' سطح و XP شما را نشان می‌دهد."
         )
         return
 
-    # 💬 پاسخ معمولی
+    # 💬 پاسخ معمولی فقط برای کلمات دقیق
     for key in responses:
-        if key in text:
+        if text == key:  # مقایسه دقیق به جای in
             await update.message.reply_text(random.choice(responses[key]))
             break
 
