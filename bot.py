@@ -1,6 +1,7 @@
 import random
 import os
 import requests
+import openai
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -12,8 +13,7 @@ from telegram.ext import (
 # توکن و کلید API
 # =========================
 TOKEN = os.environ.get("TOKEN")
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
-print("کلید API (۵ کاراکتر اول):", OPENROUTER_API_KEY[:5], "...")  # فقط برای اطمینان
+openai.api_key = os.environ.get("OPENROUTER_API_KEY")
 
 ADMIN_ID = 7801959849
 
