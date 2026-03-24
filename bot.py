@@ -68,11 +68,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_states[user_id] = "waiting_for_suggestion"
 
         keyboard = [
-            [InlineKeyboardButton("🏠 برگشت به منو", callback_data="back_to_menu")]
+            [InlineKeyboardButton("ثبت پیشنهاد ✅", callback_data="back_to_menu")]
         ]
 
         await query.message.edit_text(
-            "💡 پیشنهاداتت رو بفرست (می‌تونی چند پیام بفرستی)\n\nبرای خروج روی دکمه زیر بزن 👇",
+            "پیشنهادت رو بنویس ( میتونی با چند پیام بنویسی ) و دکمه ثبت رو بزن ، بزودی پاسخ میدهیم 🙂",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
