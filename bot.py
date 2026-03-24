@@ -104,7 +104,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text.strip().lower()
     user_xp[user_id] = user_xp.get(user_id, 0) + 5
-    # پیشنهادات
+# پیشنهادات
     if user_states.get(user_id) == "waiting_for_suggestion":
         await context.bot.send_message(
             chat_id=ADMIN_ID,
@@ -114,7 +114,31 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_states.pop(user_id, None)
         return
 
- # لول
+    # AI OpenAI GPT-3.5
+    if text.startswith("ربات بگو:"):
+        user_text = text[len("ربات بگو:"):].strip()
+        if not user_text:
+            await update.message.reply_text("❗ بعد از 'ربات بگو:' یه چیزی بنویس")
+            return
+        await update.message.reply_text("🤖 دارم فکر می‌کنم...")
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": user_text}],
+                temperature=0.7,
+                max_tokens=300
+            )
+            ai_reply = response.choices[0].message.content
+            if ai_reply:
+                await update.message.reply_text(ai_reply)
+            else:
+                await update.message.reply_text("❌ متأسفم، نتونستم پاسخ بگیرم.")
+        except Exception as e:
+            print("OpenAI Error:", e)
+            await update.message.reply_text("❌ خطا در دریافت پاسخ")
+        return
+
+    # لول
     if text == "لول":
         await show_level(update, context)
         return
