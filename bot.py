@@ -9,11 +9,16 @@ from telegram.ext import (
 
 TOKEN = os.environ.get("TOKEN")
 
-# 👇 آیدی عددی خودتو بزار
 ADMIN_ID = 7801959849
 
-# ذخیره وضعیت کاربر
 user_states = {}
+user_xp = {}
+
+# =========================
+# محاسبه لول
+# =========================
+def get_level(xp):
+    return xp // 100
 
 # =========================
 # منوی اصلی
@@ -71,7 +76,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await start(update, context)
 
 # =========================
-# پاسخ به پیام‌ها + پیشنهادات
+# پاسخ به پیام‌ها + XP + پیشنهادات
 # =========================
 responses = {
     "سلام": ["سلام چطوری ؟", "درود بر تو 👋", "سلام رفیق 😎"],
@@ -86,7 +91,10 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
 
-    # 📩 اگر کاربر در حال ارسال پیشنهاد است
+    # 🎮 اضافه کردن XP
+    user_xp[user_id] = user_xp.get(user_id, 0) + 5
+
+    # 📩 پیشنهادات
     if user_states.get(user_id) == "waiting_for_suggestion":
         await context.bot.send_message(
             chat_id=ADMIN_ID,
@@ -97,12 +105,24 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_states.pop(user_id, None)
         return
 
-    # 💬 پاسخ‌های معمولی
+    # 💬 پاسخ معمولی
     text_lower = text.lower()
     for key in responses:
         if key in text_lower:
             await update.message.reply_text(random.choice(responses[key]))
             break
+
+# =========================
+# دستور لول
+# =========================
+async def level(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    xp = user_xp.get(user_id, 0)
+    lvl = get_level(xp)
+
+    await update.message.reply_text(
+        f"🎮 لول شما: {lvl}\n⭐ XP: {xp}"
+    )
 
 # =========================
 # خوش‌آمدگویی
@@ -119,6 +139,8 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("level", level))
+
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_messages))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
