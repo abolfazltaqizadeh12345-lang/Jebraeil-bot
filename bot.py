@@ -150,7 +150,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "mistralai/mistral-7b-instruct:free",
+                    "model": "mistral-instruct-7b",
                     "messages": [{"role": "user", "content": user_text}]
                 },
                 timeout=20
