@@ -1,8 +1,6 @@
 import random
 import os
 import requests
-print("ارسال به OpenRouter:", user_text)
-print("کلید:", OPENROUTER_API_KEY[:5], "...")  # فقط ۵ کاراکتر اول برای امنیت
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -12,6 +10,7 @@ from telegram.ext import (
 
 TOKEN = os.environ.get("TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+print("کلید API (۵ کاراکتر اول):", OPENROUTER_API_KEY[:5], "...")  # فقط برای اطمینان
 
 ADMIN_ID = 7801959849
 
@@ -131,7 +130,8 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 🤖 هوش مصنوعی
     if text.startswith("ربات بگو:"):
-        user_text = text.replace("ربات بگو:", "").strip()
+        user_text = text[len("ربات بگو:"):].strip()
+        print("ارسال به OpenRouter:", user_text)  # برای دیباگ
 
         if user_text:
             await update.message.reply_text("🤖 دارم فکر می‌کنم...")
@@ -155,14 +155,14 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 data = response.json()
                 ai_reply = data["choices"][0]["message"]["content"]
-
                 await update.message.reply_text(ai_reply)
 
-            except Exception:
+            except Exception as e:
+                print("Error:", e)  # برای دیباگ
                 await update.message.reply_text("❌ خطا در دریافت پاسخ")
 
         else:
-            await update.message.reply_text("❗ بعدش یه سوال بنویس")
+            await update.message.reply_text("❗ بعد از 'ربات بگو:' یه چیزی بنویس")
 
         return
 
