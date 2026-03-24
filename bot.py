@@ -1,6 +1,8 @@
 import random
 import os
 import requests
+print("ارسال به OpenRouter:", user_text)
+print("کلید:", OPENROUTER_API_KEY[:5], "...")  # فقط ۵ کاراکتر اول برای امنیت
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
