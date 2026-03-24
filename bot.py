@@ -233,6 +233,7 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # =========================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
+app.job_queue = app.job_queue or app._job_queue
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
