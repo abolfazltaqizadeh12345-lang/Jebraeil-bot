@@ -1,8 +1,6 @@
 import random
 import os
-import requests
 import openai
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, MessageHandler, CommandHandler,
@@ -10,10 +8,11 @@ from telegram.ext import (
 )
 
 # =========================
-# توکن و کلید API
+# توکن ربات و OpenAI
 # =========================
 TOKEN = os.environ.get("TOKEN")
-openai.api_key = os.environ.get("OPENROUTER_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENROUTER_API_KEY")  # همان نام متغیر قبلی
+openai.api_key = OPENAI_API_KEY
 
 ADMIN_ID = 7801959849
 
@@ -65,13 +64,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "3️⃣ استفاده صحیح از ربات\n"
             "4️⃣ هرگونه مزاحمت حذف خواهد شد"
         )
-
         keyboard = [[InlineKeyboardButton("🔙 برگشت", callback_data="back_to_menu")]]
         await query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif query.data == "suggestions":
         user_states[user_id] = "waiting_for_suggestion"
-
         await query.message.edit_text(
             "💡 پیشنهادت رو بنویس و بفرست:",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 لغو", callback_data="back_to_menu")]])
@@ -91,6 +88,7 @@ async def show_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = f"🎮 لول شما: {lvl}\n⭐ XP: {xp}"
 
+    # ادمین می‌تونه لول کسی که رویش ریپلای زده رو هم ببینه
     if user_id == ADMIN_ID and update.message.reply_to_message:
         target_user = update.message.reply_to_message.from_user
         target_xp = user_xp.get(target_user.id, 0)
@@ -109,7 +107,7 @@ responses = {
 }
 
 # =========================
-# پیام‌ها
+# پیام‌ها + AI
 # =========================
 async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
@@ -131,11 +129,9 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_states.pop(user_id, None)
         return
 
-    # 🤖 هوش مصنوعی
+    # 🤖 هوش مصنوعی با OpenAI GPT-3.5
     if text.startswith("ربات بگو:"):
         user_text = text[len("ربات بگو:"):].strip()
-        print("ارسال به OpenRouter:", user_text)
-
         if not user_text:
             await update.message.reply_text("❗ بعد از 'ربات بگو:' یه چیزی بنویس")
             return
@@ -143,27 +139,13 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🤖 دارم فکر می‌کنم...")
 
         try:
-            response = requests.post(
-                url="https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "mistral-instruct-7b",
-                    "messages": [{"role": "user", "content": user_text}]
-                },
-                timeout=20
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": user_text}],
+                temperature=0.7,
+                max_tokens=300
             )
-
-            if response.status_code != 200:
-                print("Status code:", response.status_code)
-                print("Response:", response.text)
-                await update.message.reply_text("❌ خطا در دریافت پاسخ از سرور")
-                return
-
-            data = response.json()
-            ai_reply = data["choices"][0]["message"]["content"]
+            ai_reply = response.choices[0].message.content
             await update.message.reply_text(ai_reply)
 
         except Exception as e:
@@ -187,7 +169,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 💬 پاسخ دقیق
+    # 💬 پاسخ دقیق (فقط متن دقیق)
     for key in responses:
         if text == key:
             await update.message.reply_text(random.choice(responses[key]))
@@ -202,7 +184,7 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text(f"{member.first_name} خوش اومدی ❤️")
 
 # =========================
-# اجرا
+# اجرای ربات
 # =========================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
