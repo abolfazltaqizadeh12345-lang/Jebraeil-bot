@@ -1,7 +1,6 @@
 import random
 import os
 import time
-from openai import OpenAI
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, MessageHandler, CommandHandler,
@@ -12,15 +11,9 @@ from telegram.ext import (
 # تنظیمات
 # =========================
 TOKEN = os.environ.get("TOKEN")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 if not TOKEN:
     raise ValueError("❌ TOKEN پیدا نشد")
-
-if not OPENAI_API_KEY:
-    raise ValueError("❌ OPENAI_API_KEY پیدا نشد")
-
-client = OpenAI(api_key=OPENAI_API_KEY)
 
 ADMIN_ID = 7801959849
 user_states = {}
@@ -34,20 +27,22 @@ def get_level(xp):
     return xp // 100
 
 # =========================
-# استارت
+# منوی اصلی
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = f"سلام {update.effective_user.first_name} 👋"
 
     keyboard = [
-        [InlineKeyboardButton("📜 قوانین", callback_data="rules")],
-        [InlineKeyboardButton("💡 پیشنهاد", callback_data="suggestions")],
+        [InlineKeyboardButton("📜 قوانین ربات", callback_data="rules")],
+        [InlineKeyboardButton("💡 پیشنهادات", callback_data="suggestions")],
     ]
 
-    await update.message.reply_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    if update.message:
+        await update.message.reply_text(text, reply_markup=reply_markup)
+    elif update.callback_query:
+        await update.callback_query.message.reply_text(text, reply_markup=reply_markup)
 
 # =========================
 # دکمه‌ها
@@ -58,11 +53,27 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     if query.data == "rules":
-        await query.message.edit_text("📜 قوانین:\nاسپم نکن 😐")
+        keyboard = [[InlineKeyboardButton("🏠 برگشت", callback_data="back_to_menu")]]
+        await query.message.edit_text(
+            "📜 قوانین:\n1️⃣ احترام\n2️⃣ اسپم ممنوع",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
     elif query.data == "suggestions":
-        user_states[user_id] = "waiting"
-        await query.message.edit_text("💡 پیشنهادتو بفرست")
+        user_states[user_id] = "waiting_for_suggestion"
+
+        keyboard = [
+            [InlineKeyboardButton("🏠 برگشت به منو", callback_data="back_to_menu")]
+        ]
+
+        await query.message.edit_text(
+            "💡 پیشنهاداتت رو بفرست (می‌تونی چند پیام بفرستی)\n\nبرای خروج روی دکمه زیر بزن 👇",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    elif query.data == "back_to_menu":
+        user_states.pop(user_id, None)
+        await start(update, context)
 
 # =========================
 # نمایش لول
@@ -75,13 +86,40 @@ async def show_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🎮 Level: {lvl}\n⭐ XP: {xp}")
 
 # =========================
-# پاسخ‌های ساده
+# پاسخ ساده
 # =========================
 responses = {
     "سلام": ["سلام 👋", "درود 😎", "سلام رفیق ❤️"],
     "خوبی": ["مرسی خوبم 😁", "تو خوبی؟ 😎"],
     "چطوری": ["عالی‌ام 😎", "مرسی، تو چطوری؟ ❤️"]
 }
+
+# =========================
+# پاسخ ادمین به پیشنهاد
+# =========================
+async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if update.message.from_user.id != ADMIN_ID:
+        return
+
+    if not update.message.reply_to_message:
+        return
+
+    text = update.message.reply_to_message.text
+
+    if "ID:" in text:
+        try:
+            user_id = int(text.split("ID:")[1])
+
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"📩 پاسخ ادمین:\n\n{update.message.text}"
+            )
+
+            await update.message.reply_text("✅ پاسخ ارسال شد")
+
+        except:
+            await update.message.reply_text("❌ خطا در ارسال")
 
 # =========================
 # پیام‌ها
@@ -93,60 +131,28 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text.strip()
 
-    # ضد اسپم XP
+    # XP ضد اسپم
     now = time.time()
     if user_id not in last_message_time or now - last_message_time[user_id] > 5:
         user_xp[user_id] = user_xp.get(user_id, 0) + 5
         last_message_time[user_id] = now
 
-    # پیشنهاد
-    if user_states.get(user_id) == "waiting":
+    # پیشنهادات
+    if user_states.get(user_id) == "waiting_for_suggestion":
+
         await context.bot.send_message(
             chat_id=ADMIN_ID,
-            text=f"📩 پیشنهاد:\n{text}"
+            text=f"📩 پیشنهاد:\n\n{text}\n\n👤 {update.message.from_user.first_name}\nID:{user_id}"
         )
-        await update.message.reply_text("✅ ارسال شد ❤️")
-        user_states.pop(user_id, None)
-        return
 
-    # 🤖 AI
-    if text.startswith("ربات بگو:"):
-        user_text = text.replace("ربات بگو:", "").strip()
-
-        if not user_text:
-            await update.message.reply_text("❗ یه چیزی بنویس")
-            return
-
-        msg = await update.message.reply_text("🤖 دارم فکر می‌کنم...")
-
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": user_text}],
-                temperature=0.7,
-                max_tokens=300
-            )
-
-            ai_reply = response.choices[0].message.content
-
-            await msg.edit_text(ai_reply)
-
-        except Exception as e:
-            print("OpenAI Error:", e)
-            await msg.edit_text("❌ خطا در دریافت پاسخ")
-
+        await update.message.reply_text(
+            "✅ ارسال شد ❤️\n(ادامه بده یا برگرد به منو)"
+        )
         return
 
     # لول
     if text == "لول":
         await show_level(update, context)
-        return
-
-    # قوانین لول
-    if text == "قوانین لول ربات":
-        await update.message.reply_text(
-            "📜 قوانین:\nهر پیام = 5 XP\nهر 100 XP = 1 Level"
-        )
         return
 
     # پاسخ ساده
@@ -171,6 +177,10 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
+
+    # پاسخ ادمین باید قبل از بقیه باشه
+    app.add_handler(MessageHandler(filters.TEXT & filters.REPLY, admin_reply))
+
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_messages))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
 
