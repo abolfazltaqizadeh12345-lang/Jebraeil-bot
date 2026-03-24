@@ -232,17 +232,17 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # اجرا
 # =========================
 def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-app.job_queue = app.job_queue or app._job_queue
+    from telegram.ext import JobQueue
+
+    job_queue = JobQueue()
+    app = ApplicationBuilder().token(TOKEN).job_queue(job_queue).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
-
     app.add_handler(MessageHandler(filters.TEXT & filters.REPLY, admin_reply))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_messages))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
 
-    # 👇 جدید (هر ۵۵ دقیقه)
     app.job_queue.run_repeating(send_random_message, interval=3300, first=60)
 
     print("🚀 Bot is running...")
