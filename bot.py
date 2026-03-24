@@ -179,5 +179,5 @@ def main():
     print("ربات اجرا شد 🚀")
     app.run_polling()
 
-if name == "main":
+if __name__ == "__main__":
     main()
