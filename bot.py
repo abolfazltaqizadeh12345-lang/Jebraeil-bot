@@ -190,7 +190,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # پاسخ ساده
     for key in responses:
-        if key in text:
+        if text == key:
             await update.message.reply_text(random.choice(responses[key]))
             return
 
