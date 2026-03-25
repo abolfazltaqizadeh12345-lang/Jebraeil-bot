@@ -246,7 +246,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_messages))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
 
-    app.job_queue.run_repeating(send_random_message, interval=3300, first=60)
+    app.job_queue.run_repeating(send_random_message, interval=6600, first=60)
 
     print("🚀 Bot is running...")
     app.run_polling()
