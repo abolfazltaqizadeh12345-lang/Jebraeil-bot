@@ -1,6 +1,7 @@
 import random
 import os
 import time
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, MessageHandler, CommandHandler,
@@ -11,6 +12,7 @@ from telegram.ext import (
 # تنظیمات
 # =========================
 TOKEN = os.environ.get("TOKEN")
+HUGGINGFACE_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
 
 if not TOKEN:
     raise ValueError("❌ TOKEN پیدا نشد")
@@ -22,15 +24,54 @@ last_message_time = {}
 
 group_users = {}
 
+# =========================
+# پیام‌های رندوم
+# =========================
 random_messages = [
-    "جانم اسپند دود کو نظر نشی 😉" ,
-    "جان جان چشمایت صدقه 😍" ,
+    "جانم اسپند دود کو نظر نشی 😉",
+    "جان جان چشمایت صدقه 😍",
     "مورده یی یا زنده ؟ 🙁",
     "زیبو دری یا گنگه یی ؟ 😐",
     "بلیبور تو شنوم 😍",
     "یگو دفه گپ بزن بفامیم زنده یی 👀",
     "چخبر مقبولک 😁"
 ]
+
+# =========================
+# پاسخ ساده
+# =========================
+responses = {
+    "ربات": ["چی موگی 🫩", "رباتم اما منم دل دارم 😔", "بوگو میشنوم 🥴"],
+    "سلام": ["سلام 👋", "درود 😎", "سلام رفیق ❤️"],
+    "خوبی": ["مرسی خوبم 😁", "تو خوبی؟ 😎"],
+    "چطوری": ["عالی‌ام 😎", "مرسی، تو چطوری؟ ❤️"]
+}
+
+# =========================
+# AI واقعی (HuggingFace)
+# =========================
+def ask_ai(prompt):
+    API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+    headers = {
+        "Authorization": f"Bearer {HUGGINGFACE_API_KEY}"
+    }
+
+    payload = {
+        "inputs": prompt
+    }
+
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=15)
+        result = response.json()
+
+        if isinstance(result, list):
+            return result[0]["generated_text"]
+
+        return "❌ جواب نگرفتم"
+
+    except Exception as e:
+        print("AI ERROR:", e)
+        return "❌ خطا در AI"
 
 # =========================
 # لول
@@ -105,16 +146,6 @@ async def show_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🎮 Level: {lvl}\n⭐ XP: {xp}")
 
 # =========================
-# پاسخ ساده
-# =========================
-responses = {
-    "ربات": ["چی موگی 🫩", "رباتم اما منم دل دارم 😔", "بوگو میشنوم 🥴"],
-    "سلام": ["سلام 👋", "درود 😎", "سلام رفیق ❤️"],
-    "خوبی": ["مرسی خوبم 😁", "تو خوبی؟ 😎"],
-    "چطوری": ["عالی‌ام 😎", "مرسی، تو چطوری؟ ❤️"]
-}
-
-# =========================
 # پاسخ ادمین
 # =========================
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -166,12 +197,10 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # پیشنهادات
     if user_states.get(user_id) == "waiting_for_suggestion":
-
         await context.bot.send_message(
             chat_id=ADMIN_ID,
             text=f"📩 پیشنهاد:\n\n{text}\n\n👤 {update.message.from_user.first_name}\nID:{user_id}"
         )
-
         return
 
     # لول
@@ -186,14 +215,25 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # پاسخ ساده (فقط دقیق)
+    # پاسخ ساده
     for key in responses:
         if text == key:
             await update.message.reply_text(random.choice(responses[key]))
             return
 
+    # 🤖 AI
+    if text.startswith("ربات:"):
+        user_text = text.replace("ربات:", "").strip()
+
+        await update.message.reply_text("🤖 صبر کن...")
+
+        reply = ask_ai(user_text)
+
+        await update.message.reply_text(reply)
+        return
+
 # =========================
-# پیام رندوم هر ۵۵ دقیقه (اسم واقعی)
+# پیام رندوم هر ۵۵ دقیقه
 # =========================
 async def send_random_message(context: ContextTypes.DEFAULT_TYPE):
     for chat_id, users in group_users.items():
@@ -243,7 +283,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_messages))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
 
-    app.job_queue.run_repeating(send_random_message, interval=6600, first=60)
+    app.job_queue.run_repeating(send_random_message, interval=3300, first=60)
 
     print("🚀 Bot is running...")
     app.run_polling()
