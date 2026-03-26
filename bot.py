@@ -21,20 +21,49 @@ ADMIN_ID = 7801959849
 user_states = {}
 user_xp = {}
 last_message_time = {}
-
-# 👇 جدید (اضافه شده)
 group_users = {}
 
-# 👇 جدید (اضافه شده)
+# =========================
+# پیام‌های رندوم
+# =========================
 random_messages = [
-    "جانم اسپند دود کو نظر نشی 😉" ,
-    "جان جان چشمایت صدقه 😍" ,
+    "جانم اسپند دود کو نظر نشی 😉",
+    "جان جان چشمایت صدقه 😍",
     "مورده یی یا زنده ؟ 🙁",
     "زیبو دری یا گنگه یی ؟ 😐",
     "بلیبور تو شنوم 😍",
     "یگو دفه گپ بزن بفامیم زنده یی 👀",
     "چخبر مقبولک 😁"
 ]
+
+# =========================
+# AI
+# =========================
+async def ask_ai(prompt):
+    url = "https://api.together.xyz/v1/chat/completions"
+
+    headers = {
+        "Authorization": f"Bearer {TOGETHER_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "meta-llama/Llama-3-8b-chat-hf",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.7
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        result = response.json()
+
+        return result["choices"][0]["message"]["content"]
+
+    except Exception as e:
+        print("AI Error:", e)
+        return "❌ خطا در پاسخ AI"
 
 # =========================
 # لول
@@ -88,13 +117,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
 
         await query.message.edit_text(
-            "پیشنهادت رو بنویس ( میتونی با چند پیام بنویسی ) و دکمه ثبت رو بزن ، بزودی پاسخ میدهیم 🙂",
+            "پیشنهادت رو بنویس ( میتونی چند پیام بفرستی ) و بعد ثبت کن 🙂",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
     elif query.data == "back_to_menu":
         user_states.pop(user_id, None)
-
         await query.message.delete()
         await start(update, context)
 
@@ -129,11 +157,11 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.reply_to_message:
         return
 
-    text = update.message.reply_to_message.text
+    text = update.message.reply_to_message.text or ""
 
     if "ID:" in text:
         try:
-            user_id = int(text.split("ID:")[1])
+            user_id = int(text.split("ID:")[1].strip())
 
             await context.bot.send_message(
                 chat_id=user_id,
@@ -156,7 +184,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip().replace("!", "").replace("؟", "").replace("?", "")
     chat_id = update.message.chat.id
 
-    # 👇 جدید (ذخیره کاربران گروه)
+    # ذخیره کاربران گروه
     if update.message.chat.type in ["group", "supergroup"]:
         if chat_id not in group_users:
             group_users[chat_id] = set()
@@ -168,26 +196,30 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_xp[user_id] = user_xp.get(user_id, 0) + 5
         last_message_time[user_id] = now
 
-    # پیشنهادات (بدون پیام مزاحم)
+    # پیشنهادات
     if user_states.get(user_id) == "waiting_for_suggestion":
-
         await context.bot.send_message(
             chat_id=ADMIN_ID,
             text=f"📩 پیشنهاد:\n\n{text}\n\n👤 {update.message.from_user.first_name}\nID:{user_id}"
         )
+        return
 
+    # AI
+    if text.startswith("ربات:"):
+        user_text = text.replace("ربات:", "").strip()
+
+        if not user_text:
+            await update.message.reply_text("بعد از ربات: یه چیزی بنویس")
+            return
+
+        await update.message.reply_text("🤖 دارم فکر می‌کنم...")
+        ai_reply = await ask_ai(user_text)
+        await update.message.reply_text(ai_reply)
         return
 
     # لول
     if text == "لول":
         await show_level(update, context)
-        return
-
-    # قوانین لول
-    if text == "قوانین لول ربات":
-        await update.message.reply_text(
-            "📜 قوانین:\nهر پیام = 5 XP\nهر 100 XP = 1 Level"
-        )
         return
 
     # پاسخ ساده
@@ -197,7 +229,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
 # =========================
-# 👇 جدید (پیام رندوم هر ۵۵ دقیقه)
+# پیام رندوم هر ۵۵ دقیقه
 # =========================
 async def send_random_message(context: ContextTypes.DEFAULT_TYPE):
     for chat_id, users in group_users.items():
