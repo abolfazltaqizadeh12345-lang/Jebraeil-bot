@@ -51,27 +51,33 @@ responses = {
 # AI واقعی (HuggingFace)
 # =========================
 def ask_ai(prompt):
-    API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+    API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+
     headers = {
-        "Authorization": f"Bearer {HUGGINGFACE_API_KEY}"
+        "Authorization": f"Bearer {os.environ.get('HUGGINGFACE_API_KEY')}"
     }
 
     payload = {
-        "inputs": prompt
+        "inputs": f"Answer in Persian: {prompt}"
     }
 
     try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=15)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=20)
         result = response.json()
 
-        if isinstance(result, list):
+        print("AI RESPONSE:", result)  # برای دیباگ
+
+        if isinstance(result, list) and "generated_text" in result[0]:
             return result[0]["generated_text"]
 
-        return "❌ جواب نگرفتم"
+        if "error" in result:
+            return f"❌ AI Error: {result['error']}"
+
+        return "❌ جواب مناسب نگرفتم"
 
     except Exception as e:
         print("AI ERROR:", e)
-        return "❌ خطا در AI"
+        return "❌ خطا در اتصال به AI"
 
 # =========================
 # لول
