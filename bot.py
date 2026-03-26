@@ -12,7 +12,7 @@ from telegram.ext import (
 # تنظیمات
 # =========================
 TOKEN = os.environ.get("TOKEN")
-TOGETHER_API_KEY = os.environ.get("TOGETHER_API_KEY")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
 if not TOKEN:
     raise ValueError("❌ TOKEN پیدا نشد")
@@ -37,38 +37,39 @@ random_messages = [
 ]
 
 # =========================
-# AI
+# AI (OpenRouter)
 # =========================
 async def ask_ai(prompt):
-    url = "https://api.together.xyz/v1/chat/completions"
+    url = "https://openrouter.ai/api/v1/chat/completions"
 
     headers = {
-        "Authorization": f"Bearer {TOGETHER_API_KEY}",
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "HTTP-Referer": "https://your-app.com",
+        "X-Title": "Telegram Bot",
         "Content-Type": "application/json"
     }
 
     data = {
-        "model": "mistralai/Mistral-7B-Instruct-v0.1",
+        "model": "mistralai/mistral-7b-instruct:free",
         "messages": [
             {"role": "user", "content": prompt}
         ],
+        "max_tokens": 200,
         "temperature": 0.7
     }
 
     try:
         response = requests.post(url, headers=headers, json=data)
-
-        print("AI RAW:", response.text)  # 👈 خیلی مهم
-
         result = response.json()
 
         if "choices" in result:
             return result["choices"][0]["message"]["content"]
         else:
-            return "❌ پاسخ نامعتبر از AI"
+            print("AI ERROR:", result)
+            return "❌ خطا در پاسخ AI"
 
     except Exception as e:
-        print("AI Error:", e)
+        print("AI Exception:", e)
         return "❌ خطا در پاسخ AI"
 
 # =========================
