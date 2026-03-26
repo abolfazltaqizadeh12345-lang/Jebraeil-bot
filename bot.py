@@ -19,6 +19,7 @@ if not TOKEN:
 
 ADMIN_ID = 7801959849
 user_states = {}
+user_suggestions = {}
 last_message_time = {}
 
 # =========================
@@ -35,8 +36,8 @@ conn.commit()
 # پیام رندوم
 # =========================
 random_messages = [
-    "جانم اسپند دود کو نظر نشی 😉" ,
-    "جان جان چشمایت صدقه 😍" ,
+    "جانم اسپند دود کو نظر نشی 😉",
+    "جان جان چشمایت صدقه 😍",
     "مورده یی یا زنده ؟ 🙁",
     "زیبو دری یا گنگه یی ؟ 😐",
     "بلیبور تو شنوم 😍",
@@ -45,7 +46,7 @@ random_messages = [
 ]
 
 # =========================
-# پاسخ ساده (بدون تغییر)
+# پاسخ ساده
 # =========================
 responses = {
     "ربات": ["چی موگی 🫩", "رباتم اما منم دل دارم 😔", "بوگو میشنوم 🥴"],
@@ -64,7 +65,7 @@ def get_level(xp):
     return xp // 100
 
 # =========================
-# منوی اصلی (همون قبلی)
+# منوی اصلی (بدون تغییر)
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
@@ -81,10 +82,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+    if update.message:
+        await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+    elif update.callback_query:
+        await update.callback_query.message.reply_text(welcome_text, reply_markup=reply_markup)
 
 # =========================
-# دکمه‌ها (بدون تغییر)
+# دکمه‌ها
 # =========================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -100,18 +104,41 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "suggestions":
         user_states[user_id] = "waiting_for_suggestion"
+        user_suggestions[user_id] = []
 
         keyboard = [
-            [InlineKeyboardButton("ثبت پیشنهاد ✅", callback_data="back_to_menu")]
+            [InlineKeyboardButton("ثبت پیشنهاد ✅", callback_data="submit_suggestion")],
+            [InlineKeyboardButton("🏠 بازگشت به منو", callback_data="back_to_menu")]
         ]
 
         await query.message.edit_text(
-            "پیشنهادت رو بنویس و دکمه ثبت رو بزن 🙂",
+            "پیشنهادتو بنویس (می‌تونی چند پیام بفرستی) 🙂",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
+    elif query.data == "submit_suggestion":
+
+        if user_id not in user_suggestions or not user_suggestions[user_id]:
+            await query.answer("❌ چیزی ننوشتی", show_alert=True)
+            return
+
+        full_text = "\n".join(user_suggestions[user_id])
+
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"📩 پیشنهاد کامل:\n\n{full_text}\n\n👤 {query.from_user.first_name}\nID:{user_id}"
+        )
+
+        user_states.pop(user_id, None)
+        user_suggestions.pop(user_id, None)
+
+        await query.message.delete()
+        await start(update, context)
+
     elif query.data == "back_to_menu":
         user_states.pop(user_id, None)
+        user_suggestions.pop(user_id, None)
+
         await query.message.delete()
         await start(update, context)
 
@@ -176,8 +203,23 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.reply_to_message:
         return
 
-    # لول با ریپلای
-    if normalize(update.message.text) == "لول":
+    text = update.message.reply_to_message.text
+
+    if "ID:" in text:
+        try:
+            user_id = int(text.split("ID:")[1])
+
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"📩 پاسخ ادمین:\n\n{update.message.text}"
+            )
+
+            await update.message.reply_text("✅ پاسخ ارسال شد")
+
+        except:
+            await update.message.reply_text("❌ خطا در ارسال")
+
+    elif normalize(update.message.text) == "لول":
         target = update.message.reply_to_message.from_user
 
         cursor.execute("SELECT xp FROM users WHERE user_id=?", (target.id,))
@@ -189,7 +231,6 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"🎮 لول {target.first_name}:\nLevel: {lvl}\nXP: {xp}"
         )
-        return
 
 # =========================
 # پیام‌ها
@@ -203,7 +244,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     clean = normalize(text)
     chat_id = update.message.chat.id
 
-    # ذخیره کاربر گروه
+    # ذخیره کاربران گروه
     if update.message.chat.type in ["group", "supergroup"]:
         cursor.execute("SELECT * FROM group_users WHERE chat_id=? AND user_id=?", (chat_id, user_id))
         if not cursor.fetchone():
@@ -225,12 +266,9 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
         last_message_time[user_id] = now
 
-    # پیشنهادات
+    # پیشنهاد چندپیامی
     if user_states.get(user_id) == "waiting_for_suggestion":
-        await context.bot.send_message(
-            chat_id=ADMIN_ID,
-            text=f"📩 پیشنهاد:\n\n{text}\n\n👤 {update.message.from_user.first_name}\nID:{user_id}"
-        )
+        user_suggestions.setdefault(user_id, []).append(text)
         return
 
     # دستورات
