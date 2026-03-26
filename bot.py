@@ -98,7 +98,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "rules":
         keyboard = [[InlineKeyboardButton("🏠 برگشت", callback_data="back_to_menu")]]
         await query.message.edit_text(
-            "📜 قوانین ربات:\n1️⃣ احترام\n2️⃣ اسپم ممنوع",
+            " 🔺 قوانین ربات : \n • اسپم ممنوع \n • احترام به تمامی اعضا \n • استفاده درست از ربات ",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
@@ -327,7 +327,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & filters.REPLY, admin_reply))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_messages))
 
-    app.job_queue.run_repeating(send_random_message, interval=3300, first=60)
+    app.job_queue.run_repeating(send_random_message, interval=6600, first=60)
 
     print("🚀 Bot is running...")
     app.run_polling()
