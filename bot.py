@@ -48,7 +48,7 @@ async def ask_ai(prompt):
     }
 
     data = {
-        "model": "meta-llama/Llama-3-8b-chat-hf",
+        "model": "mistralai/Mistral-7B-Instruct-v0.1",
         "messages": [
             {"role": "user", "content": prompt}
         ],
@@ -57,9 +57,15 @@ async def ask_ai(prompt):
 
     try:
         response = requests.post(url, headers=headers, json=data)
+
+        print("AI RAW:", response.text)  # 👈 خیلی مهم
+
         result = response.json()
 
-        return result["choices"][0]["message"]["content"]
+        if "choices" in result:
+            return result["choices"][0]["message"]["content"]
+        else:
+            return "❌ پاسخ نامعتبر از AI"
 
     except Exception as e:
         print("AI Error:", e)
