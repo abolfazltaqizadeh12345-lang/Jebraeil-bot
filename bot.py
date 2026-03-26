@@ -51,10 +51,11 @@ responses = {
 # AI واقعی (HuggingFace)
 # =========================
 def ask_ai(prompt):
-    API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
+    API_URL = "https://router.huggingface.co/hf-inference/models/google/flan-t5-large"
 
     headers = {
-        "Authorization": f"Bearer {os.environ.get('HUGGINGFACE_API_KEY')}"
+        "Authorization": f"Bearer {os.environ.get('HUGGINGFACE_API_KEY')}",
+        "Content-Type": "application/json"
     }
 
     payload = {
@@ -65,7 +66,7 @@ def ask_ai(prompt):
         response = requests.post(API_URL, headers=headers, json=payload, timeout=20)
         result = response.json()
 
-        print("AI RESPONSE:", result)  # برای دیباگ
+        print("AI RESPONSE:", result)
 
         if isinstance(result, list) and "generated_text" in result[0]:
             return result[0]["generated_text"]
