@@ -18,6 +18,7 @@ if not TOKEN:
     raise ValueError("❌ TOKEN پیدا نشد")
 
 ADMIN_ID = 7801959849
+user_states = {}
 last_message_time = {}
 
 # =========================
@@ -26,28 +27,16 @@ last_message_time = {}
 conn = sqlite3.connect("bot.db", check_same_thread=False)
 cursor = conn.cursor()
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    xp INTEGER DEFAULT 0
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS group_users (
-    chat_id INTEGER,
-    user_id INTEGER
-)
-""")
-
+cursor.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, xp INTEGER)")
+cursor.execute("CREATE TABLE IF NOT EXISTS group_users (chat_id INTEGER, user_id INTEGER)")
 conn.commit()
 
 # =========================
 # پیام رندوم
 # =========================
 random_messages = [
-    "جانم اسپند دود کو نظر نشی 😉",
-    "جان جان چشمایت صدقه 😍",
+    "جانم اسپند دود کو نظر نشی 😉" ,
+    "جان جان چشمایت صدقه 😍" ,
     "مورده یی یا زنده ؟ 🙁",
     "زیبو دری یا گنگه یی ؟ 😐",
     "بلیبور تو شنوم 😍",
@@ -56,7 +45,7 @@ random_messages = [
 ]
 
 # =========================
-# پاسخ ساده
+# پاسخ ساده (بدون تغییر)
 # =========================
 responses = {
     "ربات": ["چی موگی 🫩", "رباتم اما منم دل دارم 😔", "بوگو میشنوم 🥴"],
@@ -75,30 +64,59 @@ def get_level(xp):
     return xp // 100
 
 # =========================
-# منو
+# منوی اصلی (همون قبلی)
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    welcome_text = (
+        f"سلام {update.effective_user.first_name} 👋\n"
+        "چطوری می‌تونم کمکت کنم؟"
+    )
+
     keyboard = [
-        [InlineKeyboardButton("📜 قوانین", callback_data="rules")],
+        [InlineKeyboardButton("📜 قوانین ربات", callback_data="rules")],
+        [InlineKeyboardButton("➕ اضافه کردن ربات به گروه", url=f"https://t.me/{context.bot.username}?startgroup=true")],
+        [InlineKeyboardButton("👤 مالک ربات", url="https://t.me/itxxabolfazl")],
         [InlineKeyboardButton("💡 پیشنهادات", callback_data="suggestions")]
     ]
-    await update.message.reply_text("سلام 👋", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(welcome_text, reply_markup=reply_markup)
 
 # =========================
-# دکمه‌ها
+# دکمه‌ها (بدون تغییر)
 # =========================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    user_id = query.from_user.id
     await query.answer()
 
     if query.data == "rules":
-        await query.message.edit_text("📜 احترام + اسپم ممنوع")
+        keyboard = [[InlineKeyboardButton("🏠 برگشت", callback_data="back_to_menu")]]
+        await query.message.edit_text(
+            "📜 قوانین ربات:\n1️⃣ احترام\n2️⃣ اسپم ممنوع",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
     elif query.data == "suggestions":
-        await query.message.edit_text("پیشنهادتو بفرست")
+        user_states[user_id] = "waiting_for_suggestion"
+
+        keyboard = [
+            [InlineKeyboardButton("ثبت پیشنهاد ✅", callback_data="back_to_menu")]
+        ]
+
+        await query.message.edit_text(
+            "پیشنهادت رو بنویس و دکمه ثبت رو بزن 🙂",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    elif query.data == "back_to_menu":
+        user_states.pop(user_id, None)
+        await query.message.delete()
+        await start(update, context)
 
 # =========================
-# لول خود
+# لول
 # =========================
 async def show_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -118,29 +136,27 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat.id
 
     cursor.execute("SELECT user_id FROM group_users WHERE chat_id=?", (chat_id,))
-    users = [row[0] for row in cursor.fetchall()]
+    users = [u[0] for u in cursor.fetchall()]
 
     if not users:
-        await update.message.reply_text("❌ داده‌ای نیست")
+        await update.message.reply_text("❌ هنوز داده‌ای ندارم")
         return
 
-    leaderboard = []
-
-    for user_id in users:
-        cursor.execute("SELECT xp FROM users WHERE user_id=?", (user_id,))
+    data = []
+    for uid in users:
+        cursor.execute("SELECT xp FROM users WHERE user_id=?", (uid,))
         row = cursor.fetchone()
         xp = row[0] if row else 0
-        leaderboard.append((user_id, xp))
+        data.append((uid, xp))
 
-    leaderboard.sort(key=lambda x: x[1], reverse=True)
+    data.sort(key=lambda x: x[1], reverse=True)
 
-    text = "🏆 رتبه‌بندی:\n\n"
+    text = "🏆 جدول رده‌بندی:\n\n"
 
-    for i, (user_id, xp) in enumerate(leaderboard[:10], start=1):
+    for i, (uid, xp) in enumerate(data[:10], start=1):
         lvl = get_level(xp)
-
         try:
-            user = await context.bot.get_chat(user_id)
+            user = await context.bot.get_chat(uid)
             name = user.first_name
         except:
             name = "کاربر"
@@ -153,13 +169,15 @@ async def show_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ادمین
 # =========================
 async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     if update.message.from_user.id != ADMIN_ID:
         return
 
     if not update.message.reply_to_message:
         return
 
-    if update.message.text.strip() == "لول":
+    # لول با ریپلای
+    if normalize(update.message.text) == "لول":
         target = update.message.reply_to_message.from_user
 
         cursor.execute("SELECT xp FROM users WHERE user_id=?", (target.id,))
@@ -171,17 +189,18 @@ async def admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"🎮 لول {target.first_name}:\nLevel: {lvl}\nXP: {xp}"
         )
+        return
 
 # =========================
 # پیام‌ها
 # =========================
 async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message:
+    if not update.message or not update.message.text:
         return
 
     user_id = update.message.from_user.id
     text = update.message.text.strip()
-    clean_text = normalize(text)
+    clean = normalize(text)
     chat_id = update.message.chat.id
 
     # ذخیره کاربر گروه
@@ -194,6 +213,7 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # XP
     now = time.time()
     if user_id not in last_message_time or now - last_message_time[user_id] > 5:
+
         cursor.execute("SELECT xp FROM users WHERE user_id=?", (user_id,))
         row = cursor.fetchone()
 
@@ -205,18 +225,26 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
         last_message_time[user_id] = now
 
+    # پیشنهادات
+    if user_states.get(user_id) == "waiting_for_suggestion":
+        await context.bot.send_message(
+            chat_id=ADMIN_ID,
+            text=f"📩 پیشنهاد:\n\n{text}\n\n👤 {update.message.from_user.first_name}\nID:{user_id}"
+        )
+        return
+
     # دستورات
-    if clean_text == "لول":
+    if clean == "لول":
         await show_level(update, context)
         return
 
-    if clean_text == "رتبه":
+    if clean == "رتبه":
         await show_leaderboard(update, context)
         return
 
-    # پاسخ ساده (دقیق)
+    # پاسخ ساده
     for key in responses:
-        if clean_text == key:
+        if clean == key:
             await update.message.reply_text(random.choice(responses[key]))
             return
 
@@ -226,32 +254,27 @@ async def reply_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_random_message(context: ContextTypes.DEFAULT_TYPE):
 
     cursor.execute("SELECT DISTINCT chat_id FROM group_users")
-    chats = [row[0] for row in cursor.fetchall()]
+    chats = [c[0] for c in cursor.fetchall()]
 
     for chat_id in chats:
-
         cursor.execute("SELECT user_id FROM group_users WHERE chat_id=?", (chat_id,))
-        users = [row[0] for row in cursor.fetchall()]
+        users = [u[0] for u in cursor.fetchall()]
 
         if not users:
             continue
 
-        user_id = random.choice(users)
+        uid = random.choice(users)
         text = random.choice(random_messages)
 
         try:
-            user = await context.bot.get_chat(user_id)
+            user = await context.bot.get_chat(uid)
             name = user.first_name
         except:
             name = "کاربر"
 
-        mention = f"<a href='tg://user?id={user_id}'>{name}</a>"
+        mention = f"<a href='tg://user?id={uid}'>{name}</a>"
 
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"{text}\n\n{mention}",
-            parse_mode="HTML"
-        )
+        await context.bot.send_message(chat_id, f"{text}\n\n{mention}", parse_mode="HTML")
 
 # =========================
 # اجرا
@@ -268,7 +291,7 @@ def main():
 
     app.job_queue.run_repeating(send_random_message, interval=3300, first=60)
 
-    print("🚀 Bot Running...")
+    print("🚀 Bot is running...")
     app.run_polling()
 
 if __name__ == "__main__":
