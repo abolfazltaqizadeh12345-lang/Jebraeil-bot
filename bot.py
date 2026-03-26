@@ -60,16 +60,25 @@ async def ask_ai(prompt):
 
     try:
         response = requests.post(url, headers=headers, json=data)
+
         result = response.json()
+        print("AI RESPONSE:", result)  # 👈 خیلی مهم
 
         if "choices" in result:
-            return result["choices"][0]["message"]["content"]
-        else:
-            print("AI ERROR:", result)
-            return "❌ خطا در پاسخ AI"
+            choice = result["choices"][0]
+
+            # حالت 1 (chat)
+            if "message" in choice:
+                return choice["message"]["content"]
+
+            # حالت 2 (text)
+            elif "text" in choice:
+                return choice["text"]
+
+        return "❌ پاسخ نامعتبر از AI"
 
     except Exception as e:
-        print("AI Exception:", e)
+        print("AI Error:", e)
         return "❌ خطا در پاسخ AI"
 
 # =========================
