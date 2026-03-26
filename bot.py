@@ -1,6 +1,7 @@
 import random
 import os
 import time
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, MessageHandler, CommandHandler,
@@ -11,6 +12,7 @@ from telegram.ext import (
 # تنظیمات
 # =========================
 TOKEN = os.environ.get("TOKEN")
+TOGETHER_API_KEY = os.environ.get("TOGETHER_API_KEY")
 
 if not TOKEN:
     raise ValueError("❌ TOKEN پیدا نشد")
